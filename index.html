@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalPulse Mobile App Prototype</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Manrope -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appBg: '#F7F3EC',
+            darkText: '#1F1D2B',
+            accentOrange: '#E2572F',
+            secondaryBlue: '#2B5A85',
+            cardBg: '#FFFFFF',
+            chipBg: '#EAE5DB',
+            mutedText: '#6C6A7B'
+          },
+          fontFamily: {
+            sans: ['Manrope', 'sans-serif'],
+          },
+          boxShadow: {
+            phone: '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 12px #18181b',
+            card: '0 4px 16px rgba(31, 29, 43, 0.06)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Manrope', sans-serif;
+      background-color: #0f172a;
+      color: #1F1D2B;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Animated Screen Transitions */
+    .screen {
+      transition: opacity 0.22s ease-in-out, transform 0.22s ease-in-out;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #F7F3EC;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+      transform: translateY(6px);
+    }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 10;
+      transform: translateY(0);
+    }
+
+    .touch-target {
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    .touch-target:active {
+      transform: scale(0.96);
+      opacity: 0.85;
+    }
+
+    /* Toast animation */
+    @keyframes toastSlide {
+      0% { opacity: 0; transform: translate(-50%, 20px); }
+      15% { opacity: 1; transform: translate(-50%, 0); }
+      85% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -20px); }
+    }
+    .toast-active {
+      animation: toastSlide 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-6 overflow-x-hidden">
+
+  <!-- Top Control Bar for direct testing access -->
+  <div class="mb-4 text-center z-50">
+    <div class="flex items-center justify-center space-x-2 mb-1">
+      <span class="inline-block w-3 h-3 rounded-full bg-accentOrange animate-ping"></span>
+      <h1 class="text-white text-lg sm:text-xl font-bold tracking-wide">LocalPulse Interactive Prototype</h1>
+    </div>
+    <p class="text-xs text-slate-300 max-w-md mx-auto mb-3">
+      Click cards, buttons, tabs, and error toggles below to test full interactive application flow.
+    </p>
+    
+    <!-- Quick Screen Jump Controls -->
+    <div class="flex flex-wrap items-center justify-center gap-1.5 text-xs bg-slate-800/90 p-2 rounded-2xl border border-slate-700 shadow-xl max-w-lg mx-auto">
+      <span class="text-slate-400 font-semibold px-1 text-[11px]">Direct Screen Jump:</span>
+      <button onclick="navigateTo('discover')" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white hover:bg-accentOrange transition text-[11px] font-medium">1. Discover</button>
+      <button onclick="navigateTo('details')" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white hover:bg-accentOrange transition text-[11px] font-medium">2. Details</button>
+      <button onclick="navigateTo('register')" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white hover:bg-accentOrange transition text-[11px] font-medium">3. Form</button>
+      <button onclick="navigateTo('confirmation')" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white hover:bg-accentOrange transition text-[11px] font-medium">4. Ticket</button>
+      <button onclick="openErrorState('no-internet')" class="px-2.5 py-1 bg-red-900/60 border border-red-500/40 text-red-200 rounded-lg hover:bg-red-800 transition text-[11px] font-medium">5. No Internet</button>
+      <button onclick="openErrorState('event-full')" class="px-2.5 py-1 bg-amber-900/60 border border-amber-500/40 text-amber-200 rounded-lg hover:bg-amber-800 transition text-[11px] font-medium">5. Event Full</button>
+    </div>
+  </div>
+
+  <!-- iPhone 14 Device Frame Container (390x844) -->
+  <div class="relative w-[390px] h-[844px] bg-appBg rounded-[48px] shadow-phone overflow-hidden border-[4px] border-slate-800 flex flex-col my-auto shrink-0 select-none">
+    
+    <!-- Status Bar & Dynamic Island -->
+    <div class="absolute top-0 inset-x-0 h-11 z-50 flex items-center justify-between px-7 pt-2 pointer-events-none">
+      <span class="text-xs font-bold text-darkText tracking-tight">19:42</span>
+      <!-- Dynamic Island pill -->
+      <div class="w-24 h-5 bg-black rounded-full flex items-center justify-end px-2 space-x-1 shadow-inner">
+        <div class="w-2.5 h-2.5 rounded-full bg-blue-900/40 border border-blue-500/30"></div>
+      </div>
+      <div class="flex items-center space-x-1.5 text-xs text-darkText">
+        <i class="fa-solid fa-wifi text-[10px]"></i>
+        <i class="fa-solid fa-battery-full text-xs"></i>
+      </div>
+    </div>
+
+    <!-- MAIN APP CANVAS FOR ALL 5 SCREENS -->
+    <div class="relative flex-1 w-full h-full pt-10 pb-16 overflow-hidden">
+
+      <!-- =================================================== -->
+      <!-- SCREEN 1: DISCOVER (MAIN FEED) -->
+      <!-- =================================================== -->
+      <div id="screen-discover" class="screen active no-scrollbar">
+        <div class="p-5 space-y-4">
+          <!-- User Greeting & Profile Icon -->
+          <div class="flex items-center justify-between pt-1">
+            <div>
+              <p class="text-xs text-mutedText font-semibold">Community Events • City Center</p>
+              <h2 class="text-2xl font-black text-darkText tracking-tight">Hi, Dana! 👋</h2>
+            </div>
+            <div onclick="switchTab('profile')" class="relative cursor-pointer touch-target">
+              <div class="w-10 h-10 rounded-full bg-accentOrange text-white font-extrabold flex items-center justify-center text-sm shadow-md ring-2 ring-white">
+                DS
+              </div>
+              <span class="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-mutedText text-sm"></i>
+            <input type="text" placeholder="Search events, workshops, sports…" class="w-full bg-cardBg pl-11 pr-4 py-3 rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accentOrange/40 shadow-card text-darkText placeholder-mutedText">
+            <button class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 bg-chipBg rounded-lg flex items-center justify-center text-darkText text-xs">
+              <i class="fa-solid fa-sliders"></i>
+            </button>
+          </div>
+
+          <!-- Filter Chips -->
+          <div>
+            <div class="flex space-x-2 overflow-x-auto no-scrollbar py-1">
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-accentOrange text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-sm touch-target">Today</button>
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300">This weekend</button>
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300">Music</button>
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300">Sports</button>
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300">Volunteering</button>
+              <button onclick="selectChip(this)" class="chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300">Free</button>
+            </div>
+          </div>
+
+          <!-- Section Banner -->
+          <div class="flex items-center justify-between pt-1">
+            <h3 class="text-base font-bold text-darkText">Featured Nearby</h3>
+            <span class="text-xs text-secondaryBlue font-bold cursor-pointer">View all (14)</span>
+          </div>
+
+          <!-- Event Cards Feed -->
+          <div class="space-y-4 pb-6">
+            
+            <!-- CARD 1: Jazz in the Park (Main Click Target -> Screen 2) -->
+            <div onclick="navigateTo('details')" class="bg-cardBg rounded-[16px] p-3.5 shadow-card border border-black/5 cursor-pointer touch-target hover:ring-2 hover:ring-accentOrange/50 transition">
+              <div class="relative h-40 w-full rounded-xl bg-gradient-to-tr from-amber-700 via-purple-900 to-slate-900 overflow-hidden flex flex-col justify-between p-3">
+                
+                <div class="flex justify-between items-center z-10">
+                  <span class="bg-accentOrange text-white text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm">Music</span>
+                  <span class="bg-red-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center space-x-1 backdrop-blur-xs">
+                    <i class="fa-solid fa-fire text-[9px]"></i>
+                    <span>12 seats left</span>
+                  </span>
+                </div>
+
+                <!-- Graphic Vector Artwork -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+                  <i class="fa-solid fa-sax-hot text-8xl text-white"></i>
+                </div>
+
+                <div class="relative z-10 text-white">
+                  <p class="text-[11px] text-amber-200 font-semibold">Central Park Stage</p>
+                  <h4 class="text-lg font-black leading-tight">Jazz in the Park</h4>
+                </div>
+              </div>
+
+              <div class="mt-3 px-1">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center space-x-2 text-xs font-bold text-darkText">
+                    <i class="fa-regular fa-calendar-days text-accentOrange"></i>
+                    <span>Sat, Oct 12 • 19:00</span>
+                  </div>
+                  <span class="text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">FREE</span>
+                </div>
+                <p class="text-xs text-mutedText font-medium mt-1.5 line-clamp-1">
+                  Enjoy live smooth jazz under the stars with food trucks & blanket lawn seating.
+                </p>
+              </div>
+            </div>
+
+            <!-- CARD 2: Volunteer Clean-up Day -->
+            <div onclick="navigateTo('details')" class="bg-cardBg rounded-[16px] p-3.5 shadow-card border border-black/5 cursor-pointer touch-target">
+              <div class="relative h-32 w-full rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-800 overflow-hidden flex flex-col justify-between p-3">
+                <div class="flex justify-between items-center z-10">
+                  <span class="bg-secondaryBlue text-white text-[10px] font-black uppercase px-2 py-0.5 rounded">Volunteering</span>
+                  <span class="bg-white/90 text-darkText text-[10px] font-bold px-2 py-0.5 rounded-full">5 seats left</span>
+                </div>
+                <div class="relative z-10 text-white">
+                  <h4 class="text-base font-extrabold leading-tight">Volunteer Clean-up Day</h4>
+                  <p class="text-[11px] text-emerald-100">Riverfront Eco Zone</p>
+                </div>
+              </div>
+              <div class="mt-2.5 px-1 flex justify-between items-center text-xs">
+                <span class="text-mutedText font-medium"><i class="fa-regular fa-clock text-accentOrange mr-1"></i>Sun, 10:00 AM</span>
+                <span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">FREE</span>
+              </div>
+            </div>
+
+            <!-- CARD 3: Photography Workshop -->
+            <div onclick="navigateTo('details')" class="bg-cardBg rounded-[16px] p-3.5 shadow-card border border-black/5 cursor-pointer touch-target">
+              <div class="relative h-32 w-full rounded-xl bg-gradient-to-tr from-slate-800 to-indigo-950 overflow-hidden flex flex-col justify-between p-3">
+                <div class="flex justify-between items-center z-10">
+                  <span class="bg-purple-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded">Workshop</span>
+                  <span class="bg-white/90 text-darkText text-[10px] font-bold px-2 py-0.5 rounded-full">2 seats left</span>
+                </div>
+                <div class="relative z-10 text-white">
+                  <h4 class="text-base font-extrabold leading-tight">Photography Workshop</h4>
+                  <p class="text-[11px] text-slate-300">Downtown Tech Hub</p>
+                </div>
+              </div>
+              <div class="mt-2.5 px-1 flex justify-between items-center text-xs">
+                <span class="text-mutedText font-medium"><i class="fa-regular fa-clock text-accentOrange mr-1"></i>Fri, 18:00</span>
+                <span class="font-extrabold text-darkText">$15</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- SCREEN 2: EVENT DETAILS -->
+      <!-- =================================================== -->
+      <div id="screen-details" class="screen no-scrollbar">
+        <!-- Floating Navigation Header -->
+        <div class="absolute top-3 inset-x-4 flex justify-between items-center z-20">
+          <button onclick="navigateTo('discover')" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-darkText shadow-md touch-target">
+            <i class="fa-solid fa-arrow-left text-sm"></i>
+          </button>
+          <button id="heart-btn" onclick="toggleHeart()" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 shadow-md touch-target transition">
+            <i class="fa-solid fa-heart text-base"></i>
+          </button>
+        </div>
+
+        <div class="flex-1 pb-24">
+          <!-- Hero Header Illustration -->
+          <div class="relative h-64 w-full bg-gradient-to-tr from-amber-700 via-purple-900 to-slate-900 flex items-center justify-center overflow-hidden">
+            <i class="fa-solid fa-music text-white/20 text-9xl absolute -right-4 -bottom-4"></i>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            
+            <div class="absolute bottom-4 left-5 right-5 text-white z-10">
+              <span class="bg-accentOrange text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded">Live Concert</span>
+              <h1 class="text-2xl font-black mt-1 leading-tight">Jazz in the Park</h1>
+              <p class="text-xs text-amber-200 mt-0.5"><i class="fa-solid fa-location-dot mr-1"></i>Central Park Main Lawn</p>
+            </div>
+          </div>
+
+          <!-- Event Details Body -->
+          <div class="p-5 space-y-4">
+            
+            <!-- Seats Counter Banner -->
+            <div class="bg-cardBg p-3.5 rounded-2xl shadow-card border border-gray-200/80 space-y-2">
+              <div class="flex items-center justify-between text-xs font-bold">
+                <span class="text-accentOrange flex items-center space-x-1.5">
+                  <i class="fa-solid fa-fire text-sm"></i>
+                  <span>Seats Availability</span>
+                </span>
+                <span class="text-darkText font-extrabold">12 of 80 seats left</span>
+              </div>
+              <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-accentOrange rounded-full w-[85%]"></div>
+              </div>
+            </div>
+
+            <!-- Date, Time & Location Cards -->
+            <div class="bg-cardBg p-4 rounded-2xl shadow-card space-y-3 border border-gray-100">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-orange-100/80 text-accentOrange flex items-center justify-center shrink-0">
+                  <i class="fa-regular fa-calendar-days text-lg"></i>
+                </div>
+                <div>
+                  <p class="text-[11px] text-mutedText font-semibold">Date & Time</p>
+                  <p class="text-xs font-bold text-darkText">Saturday, Oct 12 • 19:00 - 22:00</p>
+                </div>
+              </div>
+              
+              <hr class="border-gray-100">
+
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-100/80 text-secondaryBlue flex items-center justify-center shrink-0">
+                  <i class="fa-solid fa-location-dot text-lg"></i>
+                </div>
+                <div>
+                  <p class="text-[11px] text-mutedText font-semibold">Location</p>
+                  <p class="text-xs font-bold text-darkText">Central Park Stage, Main Lawn</p>
+                  <p class="text-[10px] text-mutedText">700 Park Avenue, Sector 4</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive Map Preview Graphic -->
+            <div class="relative h-32 w-full rounded-2xl bg-slate-200 overflow-hidden border border-gray-300 shadow-inner flex items-center justify-center">
+              <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:10px_10px]"></div>
+              <!-- Simulated roads -->
+              <div class="absolute w-full h-3 bg-white/90 rotate-12 top-12"></div>
+              <div class="absolute h-full w-4 bg-white/90 -rotate-45 left-24"></div>
+              
+              <div class="relative z-10 flex flex-col items-center">
+                <div class="w-9 h-9 bg-accentOrange text-white rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                  <i class="fa-solid fa-location-dot text-base"></i>
+                </div>
+                <span class="bg-darkText text-white text-[10px] font-bold px-2 py-0.5 rounded shadow mt-1">Central Park</span>
+              </div>
+            </div>
+
+            <!-- Organizer Box -->
+            <div class="bg-cardBg p-3.5 rounded-2xl shadow-card flex items-center justify-between border border-gray-100">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-secondaryBlue text-white font-bold flex items-center justify-center text-xs">
+                  CPAC
+                </div>
+                <div>
+                  <p class="text-[10px] text-mutedText font-semibold">Organized by</p>
+                  <p class="text-xs font-bold text-darkText">Central Park Arts Community</p>
+                </div>
+              </div>
+              <button onclick="showToast('Organizer followed!')" class="px-3 py-1 bg-chipBg text-darkText text-xs font-bold rounded-xl touch-target">Follow</button>
+            </div>
+
+            <!-- Description -->
+            <div class="space-y-1.5 pt-1">
+              <h3 class="text-xs font-bold text-darkText uppercase tracking-wider">About Event</h3>
+              <p class="text-xs text-mutedText leading-relaxed font-medium">
+                Enjoy an evening of smooth outdoor live jazz under the stars. Local musicians perform classic & modern jazz standards. Food trucks will be available on site. Bring your picnic blanket and enjoy!
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Sticky Bottom Registration Action Bar -->
+        <div class="absolute bottom-0 inset-x-0 bg-cardBg p-4 border-t border-gray-200/80 flex items-center justify-between z-20 shadow-lg">
+          <div>
+            <p class="text-[10px] text-mutedText font-medium">Ticket Price</p>
+            <p class="text-lg font-black text-emerald-600">FREE</p>
+          </div>
+          <button onclick="navigateTo('register')" class="bg-accentOrange text-white font-bold text-xs px-8 py-3.5 rounded-2xl shadow-md touch-target hover:bg-orange-600 transition flex items-center space-x-2">
+            <span>Register Now</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- SCREEN 3: REGISTRATION FORM -->
+      <!-- =================================================== -->
+      <div id="screen-register" class="screen no-scrollbar">
+        <!-- Header -->
+        <div class="p-4 bg-cardBg border-b border-gray-200 flex items-center justify-between">
+          <button onclick="navigateTo('details')" class="text-xs font-bold text-mutedText hover:text-darkText touch-target">
+            Cancel
+          </button>
+          <h2 class="text-sm font-bold text-darkText">Event Registration</h2>
+          <div class="w-8"></div>
+        </div>
+
+        <div class="p-5 space-y-4 flex-1">
+          
+          <!-- Quick Error State Tester Control Box -->
+          <div class="bg-slate-800 text-white p-3 rounded-2xl text-xs space-y-2 border border-slate-700 shadow-md">
+            <p class="font-bold text-[11px] text-amber-300 flex items-center justify-between">
+              <span><i class="fa-solid fa-vial mr-1"></i> Form Tester Controls:</span>
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="togglePhoneValidationError()" class="bg-slate-700 hover:bg-slate-600 p-2 rounded-xl text-[10px] font-semibold text-center border border-slate-600">
+                Toggle Empty Phone Error
+              </button>
+              <button onclick="openErrorState('no-internet')" class="bg-red-900/60 hover:bg-red-800 p-2 rounded-xl text-[10px] font-semibold text-center text-red-200 border border-red-500/30">
+                Simulate No Internet
+              </button>
+            </div>
+          </div>
+
+          <!-- Brief Event Summary Tag -->
+          <div class="bg-secondaryBlue/10 p-3 rounded-2xl border border-secondaryBlue/20 flex items-center space-x-3">
+            <div class="w-10 h-10 bg-secondaryBlue text-white rounded-xl flex items-center justify-center shrink-0 font-bold text-base">
+              <i class="fa-solid fa-ticket"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-darkText">Jazz in the Park</h4>
+              <p class="text-[11px] text-mutedText">Sat, Oct 12 • 19:00 • Central Park</p>
+            </div>
+          </div>
+
+          <!-- Main Input Form -->
+          <form id="registration-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+            
+            <!-- Full Name -->
+            <div>
+              <label class="block text-xs font-bold text-darkText mb-1">Full Name</label>
+              <input type="text" id="input-name" value="Dana Seitkali" required class="w-full bg-cardBg border border-gray-300 rounded-xl px-3.5 py-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-accentOrange/50 text-darkText">
+            </div>
+
+            <!-- Phone Number & Error Message State -->
+            <div>
+              <label class="block text-xs font-bold text-darkText mb-1">Phone Number</label>
+              <input type="tel" id="input-phone" value="+7 (707) 890-1234" placeholder="+1 (555) 000-0000" class="w-full bg-cardBg border border-gray-300 rounded-xl px-3.5 py-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-accentOrange/50 text-darkText transition">
+              
+              <!-- Red Error Banner -->
+              <p id="phone-error-msg" class="hidden text-[11px] text-red-500 font-bold mt-1.5 flex items-center space-x-1">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>Please enter your phone number</span>
+              </p>
+            </div>
+
+            <!-- Number of Tickets Stepper -->
+            <div class="bg-cardBg p-3.5 rounded-2xl border border-gray-200 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-darkText">Number of Tickets</p>
+                <p class="text-[10px] text-mutedText">Maximum 4 tickets per user</p>
+              </div>
+              <div class="flex items-center space-x-3 bg-chipBg p-1.5 rounded-xl">
+                <button type="button" onclick="adjustTickets(-1)" class="w-7 h-7 bg-cardBg rounded-lg font-extrabold text-darkText shadow-sm flex items-center justify-center touch-target text-sm">-</button>
+                <span id="ticket-stepper-val" class="font-bold text-xs text-darkText w-4 text-center">1</span>
+                <button type="button" onclick="adjustTickets(1)" class="w-7 h-7 bg-cardBg rounded-lg font-extrabold text-darkText shadow-sm flex items-center justify-center touch-target text-sm">+</button>
+              </div>
+            </div>
+
+            <!-- Checkbox -->
+            <div class="flex items-center space-x-2.5 pt-1">
+              <input type="checkbox" id="checkbox-remind" checked class="w-4 h-4 rounded border-gray-300 text-accentOrange accent-accentOrange cursor-pointer">
+              <label for="checkbox-remind" class="text-xs font-semibold text-darkText cursor-pointer">
+                Remind me 1 day before event
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="pt-4 space-y-2">
+              <button type="submit" class="w-full bg-accentOrange text-white font-bold text-xs py-3.5 rounded-2xl shadow-md touch-target hover:bg-orange-600 transition">
+                Confirm Registration
+              </button>
+              <button type="button" onclick="openErrorState('event-full')" class="w-full bg-amber-100 text-amber-900 font-bold text-xs py-2.5 rounded-xl border border-amber-300 touch-target">
+                Simulate "Event Sold Out" Error
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- SCREEN 4: CONFIRMATION & QR TICKET -->
+      <!-- =================================================== -->
+      <div id="screen-confirmation" class="screen no-scrollbar">
+        <div class="p-5 text-center space-y-4 my-auto">
+          
+          <!-- Animated Green Success Check -->
+          <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md ring-8 ring-emerald-50">
+            <i class="fa-solid fa-check text-3xl"></i>
+          </div>
+
+          <div>
+            <h2 class="text-xl font-black text-darkText">You're registered!</h2>
+            <p class="text-xs text-mutedText mt-0.5">Ticket confirmed for <span id="attendee-name-display" class="font-bold text-darkText">Dana Seitkali</span></p>
+          </div>
+
+          <!-- Ticket Card with QR Code -->
+          <div class="bg-cardBg rounded-2xl p-4 shadow-card border border-gray-200 text-left space-y-3 relative overflow-hidden">
+            <div class="flex justify-between items-start border-b border-dashed border-gray-200 pb-2.5">
+              <div>
+                <span class="text-[9px] font-extrabold text-accentOrange uppercase tracking-wider">Official Ticket Pass</span>
+                <h3 class="text-base font-bold text-darkText">Jazz in the Park</h3>
+                <p class="text-[11px] text-mutedText">Sat, Oct 12 • 19:00 - 22:00</p>
+              </div>
+              <span class="bg-emerald-100 text-emerald-700 font-extrabold text-[10px] px-2 py-0.5 rounded">
+                #LP-84920
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p class="text-mutedText font-medium text-[9px] uppercase">Venue</p>
+                <p class="font-bold text-darkText text-[11px]">Central Park Stage</p>
+              </div>
+              <div>
+                <p class="text-mutedText font-medium text-[9px] uppercase">Passes</p>
+                <p id="ticket-pass-count" class="font-bold text-darkText text-[11px]">1 Person (Free)</p>
+              </div>
+            </div>
+
+            <!-- Inline SVG QR Code Graphic -->
+            <div class="pt-2 flex flex-col items-center justify-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+              <svg class="w-32 h-32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" fill="white"/>
+                <!-- Outer Corners -->
+                <path d="M5 5h25v25H5zM10 10h15v15H10zM70 5h25v25H70zM75 10h15v15H75zM5 70h25v25H5zM10 75h15v15H10z" fill="#1F1D2B"/>
+                <!-- Internal Data Blocks -->
+                <rect x="35" y="10" width="10" height="20" fill="#1F1D2B"/>
+                <rect x="50" y="5" width="15" height="10" fill="#E2572F"/>
+                <rect x="10" y="35" width="20" height="10" fill="#1F1D2B"/>
+                <rect x="35" y="35" width="30" height="30" fill="#1F1D2B"/>
+                <rect x="42" y="42" width="16" height="16" fill="#E2572F"/>
+                <rect x="70" y="40" width="25" height="10" fill="#1F1D2B"/>
+                <rect x="35" y="70" width="10" height="20" fill="#1F1D2B"/>
+                <rect x="50" y="75" width="20" height="10" fill="#1F1D2B"/>
+                <rect x="75" y="70" width="20" height="25" fill="#1F1D2B"/>
+              </svg>
+              <p class="text-[10px] text-mutedText font-semibold mt-1.5">Show this QR code at the entrance</p>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="space-y-2 pt-1">
+            <button onclick="showToast('Event added to Calendar!')" class="w-full bg-secondaryBlue text-white font-bold text-xs py-3 rounded-xl shadow-md touch-target hover:bg-blue-900 transition flex items-center justify-center space-x-2">
+              <i class="fa-regular fa-calendar-plus text-sm"></i>
+              <span>Add to Calendar</span>
+            </button>
+
+            <button onclick="navigateTo('discover')" class="w-full bg-chipBg text-darkText font-bold text-xs py-3 rounded-xl touch-target hover:bg-gray-300 transition">
+              Back to Discover
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- SCREEN 5: ERROR & RECOVERY STATES -->
+      <!-- =================================================== -->
+      <div id="screen-error" class="screen no-scrollbar">
+        <!-- Header Mode Switcher -->
+        <div class="p-3 bg-slate-800 text-white flex items-center justify-between">
+          <span class="text-[10px] font-bold text-amber-300">Screen 5 Error State Selector:</span>
+          <div class="flex space-x-1">
+            <button onclick="setErrorVariant('no-internet')" id="btn-err-a" class="px-2 py-1 bg-accentOrange text-white text-[10px] font-bold rounded">Variant A (Offline)</button>
+            <button onclick="setErrorVariant('event-full')" id="btn-err-b" class="px-2 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded">Variant B (Full)</button>
+          </div>
+        </div>
+
+        <div class="p-6 text-center space-y-5 my-auto">
+          
+          <!-- VARIANT A: NO INTERNET CONNECTION -->
+          <div id="error-variant-no-internet" class="space-y-4">
+            <div class="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm ring-8 ring-amber-50">
+              <i class="fa-solid fa-wifi"></i>
+            </div>
+            
+            <div class="space-y-1">
+              <h2 class="text-xl font-black text-darkText">No internet connection</h2>
+              <p class="text-xs text-mutedText leading-relaxed px-2">
+                Your registration data is saved. Please check your connection and try again.
+              </p>
+            </div>
+
+            <div class="pt-4 space-y-2">
+              <button onclick="retryConnection()" class="w-full bg-accentOrange text-white font-bold text-xs py-3.5 rounded-2xl shadow-md touch-target hover:bg-orange-600 transition">
+                Retry Connection
+              </button>
+              <button onclick="navigateTo('details')" class="w-full bg-chipBg text-darkText font-bold text-xs py-3 rounded-xl touch-target">
+                Back to Event
+              </button>
+            </div>
+          </div>
+
+          <!-- VARIANT B: EVENT IS FULL / WAITLIST -->
+          <div id="error-variant-event-full" class="space-y-4 hidden">
+            <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm ring-8 ring-red-50">
+              <i class="fa-solid fa-users-slash"></i>
+            </div>
+            
+            <div class="space-y-1">
+              <h2 class="text-xl font-black text-darkText">This event is full</h2>
+              <p class="text-xs text-mutedText leading-relaxed px-2">
+                Sorry, all 80 seats have been claimed for "Jazz in the Park". You can join the waitlist for openings.
+              </p>
+            </div>
+
+            <div class="pt-4 space-y-2">
+              <button onclick="joinWaitlist()" class="w-full bg-secondaryBlue text-white font-bold text-xs py-3.5 rounded-2xl shadow-md touch-target hover:bg-blue-900 transition">
+                Join Waitlist
+              </button>
+              <button onclick="navigateTo('details')" class="w-full bg-chipBg text-darkText font-bold text-xs py-3 rounded-xl touch-target">
+                Back to Event
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- TAB 2: MAP VIEW -->
+      <!-- =================================================== -->
+      <div id="screen-map" class="screen no-scrollbar relative flex flex-col">
+        <div class="p-4 bg-cardBg border-b border-gray-200 z-10">
+          <h2 class="text-base font-extrabold text-darkText">Explore Event Map</h2>
+          <p class="text-[10px] text-mutedText">Showing 8 active community events near City Center</p>
+        </div>
+        
+        <!-- Full Map Simulation Surface -->
+        <div class="relative flex-1 bg-slate-200 overflow-hidden">
+          <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px]"></div>
+          
+          <!-- Mock Map Road Grid -->
+          <div class="absolute w-full h-8 bg-white/80 top-1/4 -rotate-6"></div>
+          <div class="absolute h-full w-8 bg-white/80 left-1/3 rotate-12"></div>
+          <div class="absolute w-full h-6 bg-blue-100/80 bottom-1/3"></div> <!-- River -->
+
+          <!-- Map Pin 1 (Jazz in Park) -->
+          <div onclick="navigateTo('details')" class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer touch-target z-20">
+            <span class="bg-accentOrange text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-md">Jazz in Park</span>
+            <div class="w-7 h-7 bg-accentOrange text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+              <i class="fa-solid fa-music text-xs"></i>
+            </div>
+          </div>
+
+          <!-- Map Pin 2 -->
+          <div class="absolute top-1/4 left-1/4 flex flex-col items-center z-10">
+            <span class="bg-darkText text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">Eco Clean</span>
+            <div class="w-6 h-6 bg-secondaryBlue text-white rounded-full flex items-center justify-center shadow-md">
+              <i class="fa-solid fa-leaf text-[10px]"></i>
+            </div>
+          </div>
+
+          <!-- Map Pin 3 -->
+          <div class="absolute bottom-1/4 right-1/4 flex flex-col items-center z-10">
+            <span class="bg-darkText text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">Photo Hub</span>
+            <div class="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-md">
+              <i class="fa-solid fa-camera text-[10px]"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: MY TICKETS VIEW -->
+      <div id="screen-mytickets" class="screen no-scrollbar">
+        <div class="p-5 space-y-4">
+          <h2 class="text-2xl font-black text-darkText">My Tickets</h2>
+          <p class="text-xs text-mutedText">Tap any active pass to view full QR code for entry.</p>
+
+          <div id="tickets-list" class="space-y-3">
+            <!-- Active Ticket Card -->
+            <div onclick="navigateTo('confirmation')" class="bg-cardBg p-4 rounded-2xl shadow-card border border-emerald-200/80 cursor-pointer touch-target hover:border-emerald-500 transition">
+              <div class="flex justify-between items-center">
+                <span class="bg-emerald-100 text-emerald-700 font-extrabold text-[10px] px-2 py-0.5 rounded">Confirmed Pass</span>
+                <span class="text-[10px] text-mutedText font-semibold">#LP-84920</span>
+              </div>
+              <h3 class="text-base font-bold text-darkText mt-2">Jazz in the Park</h3>
+              <p class="text-xs text-mutedText mt-0.5">Sat, Oct 12 • 19:00 • Central Park Stage</p>
+              
+              <div class="mt-3 flex items-center justify-between text-xs text-accentOrange font-bold pt-2.5 border-t border-gray-100">
+                <span class="flex items-center space-x-1.5">
+                  <i class="fa-solid fa-qrcode text-sm"></i>
+                  <span>View QR Code</span>
+                </span>
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PROFILE VIEW -->
+      <div id="screen-profile" class="screen no-scrollbar p-5 space-y-4">
+        <h2 class="text-2xl font-black text-darkText">Profile</h2>
+        
+        <div class="flex items-center space-x-4 bg-cardBg p-4 rounded-2xl shadow-card border border-gray-100">
+          <div class="w-14 h-14 bg-accentOrange text-white font-extrabold rounded-full flex items-center justify-center text-xl shadow">
+            DS
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-darkText">Dana Seitkali</h3>
+            <p class="text-xs text-mutedText">dana.seitkali@example.com</p>
+            <span class="inline-block mt-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">Active Resident</span>
+          </div>
+        </div>
+
+        <div class="bg-cardBg rounded-2xl p-2 shadow-card text-xs space-y-1 border border-gray-100">
+          <div onclick="showToast('Saved events loaded')" class="p-3 font-bold text-darkText flex justify-between items-center cursor-pointer border-b border-gray-100">
+            <span class="flex items-center space-x-2">
+              <i class="fa-regular fa-bookmark text-accentOrange w-4"></i>
+              <span>Saved Events (3)</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-gray-400"></i>
+          </div>
+          <div onclick="showToast('Notification settings opened')" class="p-3 font-bold text-darkText flex justify-between items-center cursor-pointer border-b border-gray-100">
+            <span class="flex items-center space-x-2">
+              <i class="fa-regular fa-bell text-secondaryBlue w-4"></i>
+              <span>Notification Preferences</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-gray-400"></i>
+          </div>
+          <div onclick="showToast('Help center opened')" class="p-3 font-bold text-darkText flex justify-between items-center cursor-pointer">
+            <span class="flex items-center space-x-2">
+              <i class="fa-regular fa-circle-question text-purple-600 w-4"></i>
+              <span>Help & Local Support</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-gray-400"></i>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FIXED BOTTOM NAVIGATION BAR (4 TABS) -->
+    <div class="absolute bottom-0 inset-x-0 h-16 bg-cardBg border-t border-gray-200/80 flex items-center justify-around px-2 z-40">
+      <button onclick="switchTab('discover')" id="tab-discover" class="tab-btn flex flex-col items-center space-y-0.5 text-accentOrange touch-target">
+        <i class="fa-solid fa-compass text-lg"></i>
+        <span class="text-[10px] font-bold">Discover</span>
+      </button>
+
+      <button onclick="switchTab('map')" id="tab-map" class="tab-btn flex flex-col items-center space-y-0.5 text-gray-400 hover:text-darkText touch-target">
+        <i class="fa-solid fa-map-location-dot text-lg"></i>
+        <span class="text-[10px] font-semibold">Map</span>
+      </button>
+
+      <button onclick="switchTab('mytickets')" id="tab-mytickets" class="tab-btn flex flex-col items-center space-y-0.5 text-gray-400 hover:text-darkText touch-target">
+        <i class="fa-solid fa-ticket text-lg"></i>
+        <span class="text-[10px] font-semibold">My Tickets</span>
+      </button>
+
+      <button onclick="switchTab('profile')" id="tab-profile" class="tab-btn flex flex-col items-center space-y-0.5 text-gray-400 hover:text-darkText touch-target">
+        <i class="fa-solid fa-user text-lg"></i>
+        <span class="text-[10px] font-semibold">Profile</span>
+      </button>
+    </div>
+
+    <!-- iPhone Home Indicator line -->
+    <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-400/80 rounded-full z-50 pointer-events-none"></div>
+
+  </div>
+
+  <!-- Toast Popup -->
+  <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-darkText text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl z-50 pointer-events-none opacity-0 flex items-center space-x-2">
+    <i class="fa-solid fa-circle-check text-green-400"></i>
+    <span id="toast-text">Notification</span>
+  </div>
+
+  <script>
+    let currentActiveScreen = 'discover';
+    let ticketQty = 1;
+    let isHeartSaved = false;
+
+    // Navigate to any specified screen
+    function navigateTo(screenId) {
+      const screens = document.querySelectorAll('.screen');
+      screens.forEach(s => s.classList.remove('active'));
+
+      const target = document.getElementById(`screen-${screenId}`);
+      if (target) {
+        target.classList.add('active');
+        currentActiveScreen = screenId;
+        updateTabHighlight(screenId);
+      }
+    }
+
+    // Bottom Navigation Switcher
+    function switchTab(tabId) {
+      navigateTo(tabId);
+    }
+
+    // Update Tab Colors
+    function updateTabHighlight(activeId) {
+      const tabs = ['discover', 'map', 'mytickets', 'profile'];
+      tabs.forEach(tab => {
+        const btn = document.getElementById(`tab-${tab}`);
+        if (!btn) return;
+        if (tab === activeId) {
+          btn.className = "tab-btn flex flex-col items-center space-y-0.5 text-accentOrange touch-target";
+          btn.querySelector('span').className = "text-[10px] font-bold";
+        } else {
+          btn.className = "tab-btn flex flex-col items-center space-y-0.5 text-gray-400 hover:text-darkText touch-target";
+          btn.querySelector('span').className = "text-[10px] font-semibold";
+        }
+      });
+    }
+
+    // Filter Chips Selection
+    function selectChip(btn) {
+      document.querySelectorAll('.chip-btn').forEach(c => {
+        c.className = "chip-btn px-4 py-2 bg-chipBg text-darkText text-xs font-semibold rounded-xl whitespace-nowrap touch-target hover:bg-gray-300";
+      });
+      btn.className = "chip-btn px-4 py-2 bg-accentOrange text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-sm touch-target";
+    }
+
+    // Heart Save Toggle
+    function toggleHeart() {
+      isHeartSaved = !isHeartSaved;
+      const btn = document.getElementById('heart-btn');
+      if (isHeartSaved) {
+        btn.innerHTML = '<i class="fa-solid fa-heart text-base text-accentOrange"></i>';
+        showToast('Saved to favorites!');
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-heart text-base text-slate-400"></i>';
+      }
+    }
+
+    // Ticket Stepper
+    function adjustTickets(delta) {
+      ticketQty = Math.max(1, Math.min(4, ticketQty + delta));
+      document.getElementById('ticket-stepper-val').innerText = ticketQty;
+    }
+
+    // Toggle Empty Phone Error State
+    function togglePhoneValidationError() {
+      const input = document.getElementById('input-phone');
+      const err = document.getElementById('phone-error-msg');
+
+      if (input.value.trim() !== '') {
+        input.value = '';
+        input.classList.add('border-red-500', 'bg-red-50');
+        err.classList.remove('hidden');
+        showToast('Simulated empty phone error');
+      } else {
+        input.value = '+7 (707) 890-1234';
+        input.classList.remove('border-red-500', 'bg-red-50');
+        err.classList.add('hidden');
+        showToast('Restored phone number');
+      }
+    }
+
+    // Registration Form Submit Handler
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const phoneInput = document.getElementById('input-phone');
+      const err = document.getElementById('phone-error-msg');
+      const nameInput = document.getElementById('input-name').value;
+
+      if (!phoneInput.value.trim()) {
+        phoneInput.classList.add('border-red-500', 'bg-red-50');
+        err.classList.remove('hidden');
+        return;
+      }
+
+      // Update Confirmation Screen Dynamic Values
+      document.getElementById('attendee-name-display').innerText = nameInput || "Dana Seitkali";
+      document.getElementById('ticket-pass-count').innerText = `${ticketQty} ${ticketQty === 1 ? 'Person' : 'People'} (Free)`;
+
+      navigateTo('confirmation');
+    }
+
+    // Open Screen 5 Error State
+    function openErrorState(variant) {
+      setErrorVariant(variant);
+      navigateTo('error');
+    }
+
+    function setErrorVariant(variant) {
+      const varA = document.getElementById('error-variant-no-internet');
+      const varB = document.getElementById('error-variant-event-full');
+      const btnA = document.getElementById('btn-err-a');
+      const btnB = document.getElementById('btn-err-b');
+
+      if (variant === 'no-internet') {
+        varA.classList.remove('hidden');
+        varB.classList.add('hidden');
+        btnA.className = "px-2 py-1 bg-accentOrange text-white text-[10px] font-bold rounded";
+        btnB.className = "px-2 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded";
+      } else {
+        varA.classList.add('hidden');
+        varB.classList.remove('hidden');
+        btnB.className = "px-2 py-1 bg-accentOrange text-white text-[10px] font-bold rounded";
+        btnA.className = "px-2 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded";
+      }
+    }
+
+    function retryConnection() {
+      showToast('Connection restored!');
+      setTimeout(() => {
+        navigateTo('confirmation');
+      }, 300);
+    }
+
+    function joinWaitlist() {
+      showToast('Added to waitlist! Position #4');
+      setTimeout(() => {
+        navigateTo('discover');
+      }, 500);
+    }
+
+    // Toast Utility
+    function showToast(msg) {
+      const toast = document.getElementById('toast-message');
+      const text = document.getElementById('toast-text');
+      text.innerText = msg;
+
+      toast.classList.remove('toast-active');
+      void toast.offsetWidth;
+      toast.classList.add('toast-active');
+    }
+  </script>
+</body>
+</html>
