@@ -1,0 +1,211 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SwiftParcel SQL Sandbox</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one working column — query picker strip, editor, result grid; tables & schema in a side rail on wide screens */
+:root{
+  --bg:#FCE9DA; --surface:#FFF6EE; --ink:#1D1D1F; --muted:#5E5650; --line:#1D1D1F;
+  --pink:#E667A2; --pink-ink:#B0205F; --blue:#456BA0; --on-blue:#FCE9DA; --teal:#5BA3AA;
+  --code-bg:#1D1D1F; --code-fg:#FCE9DA; --ok:#2E7D4F; --err:#B3261E; --row:#FBEFE4;
+  --display:'Inter Tight', 'Arial Narrow', Arial, sans-serif;
+  --body:'Inter', 'Segoe UI', Arial, sans-serif;
+  --mono:'JetBrains Mono', 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1716; --surface:#262120; --ink:#F5E8DD; --muted:#B9ABA0; --line:#5A4F49;
+  --pink:#EE7DB2; --pink-ink:#F19AC2; --blue:#5B80B8; --on-blue:#FFF3E8; --teal:#6FB5BB;
+  --code-bg:#0F0D0C; --code-fg:#F5E8DD; --ok:#7BC99A; --err:#FF8A80; --row:#2D2725; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1B1716; --surface:#262120; --ink:#F5E8DD; --muted:#B9ABA0; --line:#5A4F49;
+  --pink:#EE7DB2; --pink-ink:#F19AC2; --blue:#5B80B8; --on-blue:#FFF3E8; --teal:#6FB5BB;
+  --code-bg:#0F0D0C; --code-fg:#F5E8DD; --ok:#7BC99A; --err:#FF8A80; --row:#2D2725; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,7vw,76px);line-height:.95;letter-spacing:-.03em;color:var(--pink);-webkit-text-stroke:2px var(--line);margin:0;text-wrap:balance}
+.sub{color:var(--muted);max-width:62ch;margin:6px 0 0}
+.badge{font:600 13px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--blue);color:var(--on-blue);border:2px solid var(--line);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:18px}
+.label{font:600 12px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.qbar{display:flex;flex-wrap:wrap;gap:8px}
+.qbtn{font:600 15px/1 var(--body);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:999px;padding:10px 14px;cursor:pointer}
+.qbtn b{color:var(--pink-ink);margin-right:6px}
+.qbtn:hover{background:var(--row)}
+.qbtn[aria-pressed="true"]{background:var(--pink);color:#1D1D1F}
+.qbtn[aria-pressed="true"] b{color:#1D1D1F}
+.qdesc{margin:12px 0 0;color:var(--muted);max-width:75ch}
+textarea{width:100%;min-height:190px;resize:vertical;font:15px/1.5 var(--mono);color:var(--code-fg);background:var(--code-bg);border:2px solid var(--line);border-radius:14px;padding:14px 16px;tab-size:2}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+.btn{font:700 15px/1 var(--body);border:2px solid var(--line);border-radius:12px;padding:12px 18px;cursor:pointer;background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--blue);color:var(--on-blue)}
+.btn:hover{filter:brightness(1.05)}
+.hint{color:var(--muted);font-size:14px}
+button:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.status{font-weight:600;margin:0 0 10px}
+.status.ok{color:var(--ok)} .status.err{color:var(--err)}
+.result{display:flex;flex-direction:column;gap:14px}
+.tbl{overflow-x:auto;border:2px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th{background:var(--blue);color:var(--on-blue);text-align:left;font-weight:600;padding:9px 12px;white-space:nowrap}
+td{padding:8px 12px;border-top:1px solid color-mix(in srgb,var(--line) 25%,transparent);white-space:nowrap}
+tr:nth-child(even) td{background:var(--row)}
+td.null{color:var(--muted);font-style:italic}
+.caption{font:600 14px/1.3 var(--body);color:var(--muted);margin:0 0 6px}
+aside.rail{display:flex;flex-direction:column;gap:16px;min-width:0}
+.tlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tlist button{width:100%;display:flex;justify-content:space-between;gap:10px;font:500 15px/1.2 var(--mono);background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
+.tlist button:hover{background:var(--row)}
+.tlist .n{font-family:var(--body);font-weight:700;color:var(--blue)}
+.total{margin:10px 0 0;font-weight:700}
+details summary{cursor:pointer;font-weight:700}
+pre.schema{margin:10px 0 0;max-height:360px;overflow:auto;font:12.5px/1.45 var(--mono);background:var(--code-bg);color:var(--code-fg);border-radius:12px;padding:12px}
+.note{font-size:14px;color:var(--muted)}
+.loading{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SwiftParcel SQL Sandbox</h1>
+      <p class="sub">The live database from the project “Courier Delivery Tracking System”: 6 tables and 33 fictional records running in your browser (SQLite). Pick one of the five report queries or write your own. Nothing is saved; reload the page to start again.</p>
+    </div>
+    <span class="badge">Assignment 3 · Topic 23</span>
+  </header>
+
+  <div class="grid">
+    <div class="main">
+      <section class="panel" aria-labelledby="qlabel">
+        <p class="label" id="qlabel">Report queries — run them in order 1 → 5</p>
+        <div class="qbar" id="qbar"></div>
+        <p class="qdesc" id="qdesc"></p>
+      </section>
+
+      <section class="panel">
+        <label class="label" for="sql">SQL editor</label>
+        <textarea id="sql" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div class="actions">
+          <button class="btn primary" id="run" type="button">Run query</button>
+          <button class="btn" id="reset" type="button">Reset database</button>
+          <span class="hint">Ctrl + Enter also runs the query</span>
+        </div>
+      </section>
+
+      <section class="panel" aria-live="polite">
+        <p class="label">Result</p>
+        <div id="out" class="result"><p class="loading">Loading the database…</p></div>
+      </section>
+    </div>
+
+    <aside class="rail">
+      <section class="panel">
+        <p class="label">Tables · click to view</p>
+        <ul class="tlist" id="tables"></ul>
+        <p class="total" id="total"></p>
+      </section>
+      <section class="panel">
+        <details>
+          <summary>Schema (CREATE TABLE)</summary>
+          <pre class="schema" id="schema"></pre>
+        </details>
+      </section>
+      <p class="note">All names, phones, e-mails and password hashes are fictional demonstration data.</p>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-asm.js"></script>
+<script>
+const SCHEMA = "CREATE TABLE branches (\n  branch_id    INTEGER PRIMARY KEY,\n  branch_name  VARCHAR(60)  NOT NULL,\n  city         VARCHAR(40)  NOT NULL,\n  address      VARCHAR(120) NOT NULL,\n  phone        VARCHAR(20)\n);\nCREATE TABLE customers (\n  customer_id  INTEGER PRIMARY KEY,\n  full_name    VARCHAR(80)  NOT NULL,\n  phone        VARCHAR(20)  NOT NULL,\n  email        VARCHAR(80)  UNIQUE,\n  address      VARCHAR(120) NOT NULL,\n  created_at   DATE         NOT NULL\n);\nCREATE TABLE couriers (\n  courier_id   INTEGER PRIMARY KEY,\n  branch_id    INTEGER NOT NULL REFERENCES branches(branch_id),\n  full_name    VARCHAR(80) NOT NULL,\n  phone        VARCHAR(20) NOT NULL,\n  vehicle_type VARCHAR(20) CHECK (vehicle_type IN ('Car','Bike','Scooter','Van')),\n  status       VARCHAR(20) DEFAULT 'Active'\n);\nCREATE TABLE shipments (\n  shipment_id     INTEGER PRIMARY KEY,\n  tracking_number VARCHAR(20) UNIQUE NOT NULL,\n  sender_id       INTEGER NOT NULL REFERENCES customers(customer_id),\n  courier_id      INTEGER REFERENCES couriers(courier_id),\n  origin_branch_id INTEGER NOT NULL REFERENCES branches(branch_id),\n  receiver_name   VARCHAR(80)  NOT NULL,\n  receiver_address VARCHAR(120) NOT NULL,\n  weight_kg       DECIMAL(6,2) NOT NULL,\n  price_kzt       DECIMAL(10,2) NOT NULL,\n  status          VARCHAR(20) DEFAULT 'Created',\n  created_at      DATE NOT NULL\n);\nCREATE TABLE tracking_events (\n  event_id     INTEGER PRIMARY KEY,\n  shipment_id  INTEGER NOT NULL REFERENCES shipments(shipment_id),\n  event_time   DATETIME NOT NULL,\n  location     VARCHAR(80) NOT NULL,\n  status       VARCHAR(20) NOT NULL,\n  note         VARCHAR(150)\n);\nCREATE TABLE user_accounts (\n  user_id       INTEGER PRIMARY KEY,\n  username      VARCHAR(40) UNIQUE NOT NULL,\n  password_hash VARCHAR(255) NOT NULL,\n  role          VARCHAR(20) NOT NULL CHECK (role IN ('Administrator','Dispatcher','Courier','Customer')),\n  customer_id   INTEGER REFERENCES customers(customer_id),\n  courier_id    INTEGER REFERENCES couriers(courier_id),\n  mfa_enabled   BOOLEAN DEFAULT 0,\n  last_login    DATETIME\n);\n";
+const DATA = "INSERT INTO branches VALUES\n (1,'Astana Central Hub','Astana','12 Mangilik El Ave','+7 700 000 0101'),\n (2,'Almaty South Hub','Almaty','45 Abay Ave','+7 700 000 0202'),\n (3,'Karaganda Point','Karaganda','8 Bukhar Zhyrau St','+7 700 000 0303');\nINSERT INTO customers VALUES\n (1,'Aruzhan Testova','+7 701 111 0001','aruzhan.t@example.com','5 Kenesary St, Astana','2026-09-01'),\n (2,'Daniyar Demoev','+7 701 111 0002','daniyar.d@example.com','17 Turan Ave, Astana','2026-09-03'),\n (3,'Madina Samplova','+7 701 111 0003','madina.s@example.com','22 Tole Bi St, Almaty','2026-09-05'),\n (4,'Timur Fictiov','+7 701 111 0004','timur.f@example.com','9 Erubaev St, Karaganda','2026-09-10'),\n (5,'Aigerim Mockova','+7 701 111 0005','aigerim.m@example.com','3 Dostyk Ave, Almaty','2026-09-12');\nINSERT INTO couriers VALUES\n (1,1,'Nurlan Kuryerov','+7 702 222 0001','Car','Active'),\n (2,1,'Askar Bystrov','+7 702 222 0002','Scooter','Active'),\n (3,2,'Erlan Dostavkin','+7 702 222 0003','Van','Active'),\n (4,3,'Bolat Paketov','+7 702 222 0004','Bike','On leave');\nINSERT INTO shipments VALUES\n (1,'KZ-2026-0001',1,1,1,'Saule Receiverova','30 Syganak St, Astana',1.20,1500,'Delivered','2026-10-01'),\n (2,'KZ-2026-0002',2,2,1,'Marat Poluchaev','14 Kabanbay Batyr Ave, Astana',0.50,1000,'In transit','2026-10-05'),\n (3,'KZ-2026-0003',3,3,2,'Dana Adresatova','61 Satpayev St, Almaty',3.80,2800,'Out for delivery','2026-10-06'),\n (4,'KZ-2026-0004',4,NULL,3,'Ruslan Primerov','2 Stroiteley Ave, Karaganda',2.00,1800,'Created','2026-10-07'),\n (5,'KZ-2026-0005',5,3,2,'Gulnara Testbaeva','10 Al-Farabi Ave, Almaty',6.50,4200,'In transit','2026-10-08'),\n (6,'KZ-2026-0006',1,1,1,'Yerbol Sampleuly','7 Orynbor St, Astana',0.80,1200,'Delivered','2026-10-09');\nINSERT INTO tracking_events VALUES\n (1,1,'2026-10-01 10:15','Astana Central Hub','Created','Parcel registered'),\n (2,1,'2026-10-01 14:40','Astana','Out for delivery','Assigned to courier #1'),\n (3,1,'2026-10-01 17:05','30 Syganak St, Astana','Delivered','Handed to receiver'),\n (4,2,'2026-10-05 09:30','Astana Central Hub','Created','Parcel registered'),\n (5,2,'2026-10-05 12:00','Astana Central Hub','In transit','Sorted for route A2'),\n (6,3,'2026-10-06 11:20','Almaty South Hub','Created','Parcel registered'),\n (7,3,'2026-10-07 08:45','Almaty','Out for delivery','Assigned to courier #3'),\n (8,5,'2026-10-08 16:10','Almaty South Hub','Created','Parcel registered'),\n (9,5,'2026-10-09 09:00','Almaty South Hub','In transit','Loaded into van'),\n (10,6,'2026-10-09 13:00','Astana Central Hub','Created','Parcel registered'),\n (11,6,'2026-10-10 15:30','7 Orynbor St, Astana','Delivered','Handed to receiver');\nINSERT INTO user_accounts VALUES\n (1,'admin.main','$2b$12$FAKEhashAdminDemoOnly000000000000000000000000000','Administrator',NULL,NULL,1,'2026-10-13 09:00'),\n (2,'dispatch.astana','$2b$12$FAKEhashDispatcherDemo0000000000000000000000000','Dispatcher',NULL,NULL,1,'2026-10-13 08:30'),\n (3,'courier.nurlan','$2b$12$FAKEhashCourierDemo000000000000000000000000000','Courier',NULL,1,1,'2026-10-12 18:00'),\n (4,'aruzhan.t','$2b$12$FAKEhashCustomerDemo00000000000000000000000000','Customer',1,NULL,0,'2026-10-11 20:10');\n";
+const QUERIES = [{"id": "q1", "n": "1", "label": "INSERT", "purpose": "Registers a new shipment KZ-2026-0007 sent by customer #2 and assigns it to courier #2. Expected: 1 row added.", "sql": "INSERT INTO shipments (shipment_id, tracking_number, sender_id, courier_id, origin_branch_id, receiver_name, receiver_address, weight_kg, price_kzt, status, created_at)\nVALUES (7, 'KZ-2026-0007', 2, 2, 1, 'Alina Exampleva', '25 Mangilik El Ave, Astana', 1.50, 1600, 'Created', '2026-10-12');", "check": "SELECT shipment_id, tracking_number, sender_id, courier_id, status FROM shipments WHERE shipment_id = 7;"}, {"id": "q2", "n": "2", "label": "SELECT", "purpose": "Lists all couriers with their vehicle type and status. Expected: 4 rows.", "sql": "SELECT courier_id, full_name, vehicle_type, status\nFROM couriers;"}, {"id": "q3", "n": "3", "label": "WHERE", "purpose": "Finds only the shipments that are “In transit”. Expected: 2 rows (KZ-2026-0002, KZ-2026-0005).", "sql": "SELECT tracking_number, receiver_name, weight_kg, status\nFROM shipments\nWHERE status = 'In transit';"}, {"id": "q4", "n": "4", "label": "JOIN", "purpose": "Joins shipments, customers, couriers and branches to show names instead of IDs. After query 1 it returns 6 rows; KZ-2026-0004 is skipped because it has no courier yet.", "sql": "SELECT s.tracking_number, c.full_name AS sender, k.full_name AS courier, b.branch_name, s.status\nFROM shipments s\nJOIN customers c ON s.sender_id = c.customer_id\nJOIN couriers  k ON s.courier_id = k.courier_id\nJOIN branches  b ON s.origin_branch_id = b.branch_id\nORDER BY s.tracking_number;"}, {"id": "q5", "n": "5", "label": "UPDATE", "purpose": "Marks shipment KZ-2026-0003 as “Delivered”. Expected: 1 row changed. Without WHERE it would change every row.", "sql": "UPDATE shipments\nSET status = 'Delivered'\nWHERE tracking_number = 'KZ-2026-0003';", "check": "SELECT tracking_number, status FROM shipments WHERE tracking_number = 'KZ-2026-0003';"}];
+const TABLES = ["branches","customers","couriers","shipments","tracking_events","user_accounts"];
+let SQL, db, current = null;
+
+const $ = s => document.querySelector(s);
+const esc = v => String(v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function freshDb(){
+  db = new SQL.Database();
+  db.run("PRAGMA foreign_keys = ON;");
+  db.exec(SCHEMA); db.exec(DATA);
+  refreshTables();
+}
+function refreshTables(){
+  let total = 0;
+  $("#tables").innerHTML = TABLES.map(t => {
+    const n = db.exec(`SELECT COUNT(*) FROM ${t}`)[0].values[0][0]; total += n;
+    return `<li><button type="button" data-t="${t}"><span>${t}</span><span class="n">${n}</span></button></li>`;
+  }).join("");
+  $("#total").textContent = `${total} records in total`;
+  $("#tables").querySelectorAll("button").forEach(b => b.onclick = () => {
+    setQuery(null); $("#sql").value = `SELECT * FROM ${b.dataset.t};`; run();
+  });
+}
+function tableHtml(res, caption){
+  if (!res) return "";
+  const head = res.columns.map(c => `<th>${esc(c)}</th>`).join("");
+  const rows = res.values.map(r => "<tr>" + r.map(v => v === null ? '<td class="null">NULL</td>' : `<td>${esc(typeof v === "number" && !Number.isInteger(v) ? v.toFixed(2) : v)}</td>`).join("") + "</tr>").join("");
+  return `${caption ? `<p class="caption">${esc(caption)}</p>` : ""}<div class="tbl"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function run(){
+  const sql = $("#sql").value.trim();
+  const out = $("#out");
+  if (!sql){ out.innerHTML = '<p class="status err">Type a query first.</p>'; return; }
+  try{
+    const results = db.exec(sql);
+    const changed = db.getRowsModified();
+    let html = "";
+    if (results.length){
+      const rows = results[results.length-1].values.length;
+      html += `<p class="status ok">✓ ${rows} row${rows===1?"":"s"} returned</p>`;
+      html += results.map(r => tableHtml(r)).join("");
+    } else {
+      html += `<p class="status ok">✓ Done: ${changed} row${changed===1?"":"s"} changed</p>`;
+    }
+    if (current && current.check){
+      const chk = db.exec(current.check);
+      if (chk.length) html += tableHtml(chk[0], "Check: " + current.check);
+    }
+    out.innerHTML = html;
+    refreshTables();
+  }catch(e){
+    let msg = e.message;
+    if (/UNIQUE constraint failed: shipments\.shipment_id|UNIQUE constraint failed: shipments\.tracking_number/.test(msg))
+      msg += " — this parcel was already added. Press “Reset database” to run the INSERT again.";
+    out.innerHTML = `<p class="status err">Error: ${esc(msg)}</p>`;
+  }
+}
+function setQuery(q){
+  current = q;
+  document.querySelectorAll(".qbtn").forEach(b => b.setAttribute("aria-pressed", String(q && b.dataset.id === q.id)));
+  $("#qdesc").textContent = q ? q.purpose : "Your own query. Only SELECT, INSERT, UPDATE and DELETE on these six tables make sense here.";
+  if (q) $("#sql").value = q.sql;
+}
+function build(){
+  $("#schema").textContent = SCHEMA.trim();
+  $("#qbar").innerHTML = QUERIES.map(q => `<button class="qbtn" type="button" data-id="${q.id}" aria-pressed="false"><b>${q.n}</b>${esc(q.label)}</button>`).join("");
+  $("#qbar").querySelectorAll(".qbtn").forEach(b => b.onclick = () => { setQuery(QUERIES.find(q => q.id === b.dataset.id)); run(); });
+  $("#run").onclick = run;
+  $("#reset").onclick = () => { freshDb(); $("#out").innerHTML = '<p class="status ok">✓ Database reset to the original 33 records.</p>'; };
+  $("#sql").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){ e.preventDefault(); run(); } });
+  $("#sql").addEventListener("input", () => { if (current){ current = null; document.querySelectorAll(".qbtn").forEach(b => b.setAttribute("aria-pressed","false")); $("#qdesc").textContent = "Edited query."; } });
+}
+build();
+if (typeof initSqlJs !== "function"){
+  $("#out").innerHTML = '<p class="status err">The SQL engine could not load. Check the internet connection and reload the page.</p>';
+} else {
+  initSqlJs().then(S => {
+    SQL = S; freshDb();
+    setQuery(QUERIES[1]); run();
+  }).catch(e => { $("#out").innerHTML = `<p class="status err">The SQL engine could not start: ${esc(e.message)}</p>`; });
+}
+</script>
+
+</body></html>
